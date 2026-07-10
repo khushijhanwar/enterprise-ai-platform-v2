@@ -86,6 +86,7 @@ exact line(s) you'd change to point at the managed service instead.
 ![Enterprise AI Platform demo](screenshots/ss5.png)
 
 ![Enterprise AI Platform demo](screenshots/ss6.png)
+
 ## Project layout
 
 ```
