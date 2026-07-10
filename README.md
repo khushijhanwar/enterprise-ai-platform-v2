@@ -3,7 +3,7 @@
 A production-architecture RAG + AI agent platform, running entirely on a
 free, local, open-source stack. Every component is a real, industry-used
 technology — nothing here is a placeholder or a simulation of a real tool.
-
+![alt text](<screenshots/Screenshot 2026-07-10 at 4.22.52 AM.png>)
 ## Architecture
 
 ```
