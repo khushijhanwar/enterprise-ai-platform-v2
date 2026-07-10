@@ -81,7 +81,11 @@ sides of it in an interview.
 
 Every module's docstring in the code repeats its specific swap and the
 exact line(s) you'd change to point at the managed service instead.
+![Enterprise AI Platform demo](screenshots/ss4.png)
 
+![Enterprise AI Platform demo](screenshots/ss5.png)
+
+![Enterprise AI Platform demo](screenshots/ss6.png)
 ## Project layout
 
 ```
