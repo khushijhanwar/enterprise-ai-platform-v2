@@ -3,11 +3,11 @@
 A production-architecture RAG + AI agent platform, running entirely on a
 free, local, open-source stack. Every component is a real, industry-used
 technology — nothing here is a placeholder or a simulation of a real tool.
-![Setup check confirming PySpark, BGE embeddings, and Ollama are all fully active](screenshots/ss1.png)
+![Enterprise AI Platform demo](screenshots/ss3.png)
 
-![SQL agent generating and executing a live query for top accounts by spend](screenshots/ss2.png)
+![Enterprise AI Platform demo](screenshots/ss2.png)
 
-![Grounded RAG answer citing the correct source document, with retrieved chunks and rerank scores shown](screenshots/ss3.png)
+![Enterprise AI Platform demo](screenshots/ss1.png)
 
 ## Architecture
 
