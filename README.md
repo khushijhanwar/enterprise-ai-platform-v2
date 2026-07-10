@@ -3,11 +3,11 @@
 A production-architecture RAG + AI agent platform, running entirely on a
 free, local, open-source stack. Every component is a real, industry-used
 technology — nothing here is a placeholder or a simulation of a real tool.
-![Enterprise AI Platform demo](screenshots/ss1.png)
+![Enterprise AI Platform demo](screenshots/ss3.png)
 
 ![Enterprise AI Platform demo](screenshots/ss2.png)
 
-![Enterprise AI Platform demo](screenshots/ss3.png)
+![Enterprise AI Platform demo](screenshots/ss1.png)
 
 ## Architecture
 
