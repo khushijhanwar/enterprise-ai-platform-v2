@@ -57,6 +57,11 @@ technology — nothing here is a placeholder or a simulation of a real tool.
 
  sample_docs/*.txt ──► NetworkX knowledge graph (app/graph) ──► related concepts
 ```
+![Enterprise AI Platform demo](screenshots/ss6.png)
+
+![Enterprise AI Platform demo](screenshots/ss5.png)
+
+![Enterprise AI Platform demo](screenshots/ss4.png)
 
 ## Production → free-stack mapping
 
