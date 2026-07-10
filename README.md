@@ -198,24 +198,6 @@ Both fallbacks exist purely so the app never hard-crashes if you run it
 somewhere offline — the honest, intended state is both dependencies
 installed, which `check_setup.py` will confirm.
 
-## Talking about this in an interview
 
-A few things worth having a crisp answer for:
 
-- **Why DuckDB over Postgres for the warehouse layer?** DuckDB's
-  columnar, vectorized execution model is architecturally closer to
-  BigQuery than row-oriented Postgres is — the SQL and query-planning
-  concepts transfer more directly.
-- **Why FAISS over a full vector DB?** FAISS is the actual library many
-  managed vector search products build on. Running it in-process avoids
-  standing up a separate service for a single-node project, while still
-  using production-grade ANN search.
-- **Why retrieve-then-rerank instead of just vector search?** Embedding
-  similarity is fast but approximate; a cross-encoder scores the query
-  and passage jointly, which is slower but more accurate — so you widen
-  the net with FAISS (top 8) and narrow it with precision (top 3).
-- **What would change at real enterprise scale?** Swap DuckDB's local
-  file for a BigQuery connection, FAISS for AlloyDB Vector Search with
-  an IVF index, Ollama for the Gemini API, and LangGraph nodes for ADK
-  agents wired over an MCP server — the architecture and control flow
-  don't change, only the backing services do.
+
