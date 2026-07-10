@@ -1,0 +1,13 @@
+Refund Policy - Acme Cloud Services
+
+Customers may request a full refund within 30 days of purchase if they are
+unsatisfied with the service. Refunds are not available for usage-based
+charges already incurred, such as compute hours or storage consumed. To
+request a refund, customers must submit a ticket via the support portal
+with their account ID and invoice number. Refund requests are typically
+processed within 5-7 business days. Enterprise customers with an annual
+contract should instead refer to the terms in their Master Services
+Agreement, as the standard refund policy does not apply to annual
+commitments. Partial refunds may be issued at the discretion of the
+account manager in cases of documented service outages exceeding the
+contractual SLA.

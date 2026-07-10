@@ -1,0 +1,32 @@
+# --- Core data / warehouse ---
+pyspark>=3.5          # real Spark, local mode (swap master URL for a cluster in prod)
+duckdb>=0.10          # BigQuery-compatible local analytical warehouse
+pandas
+numpy
+
+# --- RAG stack ---
+langchain>=0.2
+langchain-core>=0.2
+langchain-text-splitters>=0.2
+sentence-transformers>=3.0   # BGE embeddings + cross-encoder reranker (downloads weights on first run)
+faiss-cpu>=1.8               # production-grade local vector index
+
+# --- Agents / orchestration ---
+langgraph>=0.2
+fastmcp>=2.0                 # real MCP server/tools
+
+# --- LLM ---
+ollama>=0.3                  # client for a locally-running Ollama server (install separately: https://ollama.com)
+
+# --- Graph analytics ---
+networkx>=3.0
+
+# --- API / frontend ---
+fastapi>=0.110
+uvicorn[standard]>=0.29
+streamlit>=1.35
+requests
+
+# --- Utilities ---
+python-dotenv
+scikit-learn   # only used for the offline TF-IDF fallback if BGE can't be downloaded

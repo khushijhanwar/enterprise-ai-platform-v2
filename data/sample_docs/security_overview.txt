@@ -1,0 +1,12 @@
+Security Overview - Acme Cloud Services
+
+All data is encrypted at rest using AES-256 and in transit using TLS 1.3.
+Access to customer data is governed by role-based access control. Acme
+Cloud Services is SOC 2 Type II certified and undergoes annual third-party
+penetration testing. Customers on the Enterprise plan can request a
+signed Business Associate Agreement for HIPAA compliance, and a Data
+Processing Addendum for GDPR compliance. Security incidents are reported
+to affected customers within 72 hours of confirmed detection, in line
+with regulatory requirements. Multi-factor authentication is enforced for
+all administrative access, and audit logs are retained for a minimum of
+one year for Enterprise tier customers.

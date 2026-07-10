@@ -1,0 +1,14 @@
+Enterprise Onboarding Guide - Acme Cloud Services
+
+New enterprise accounts go through a four-stage onboarding process. Stage
+one is a kickoff call with a solutions architect to review technical
+requirements and integration points. Stage two is environment
+provisioning, including VPC setup, IAM roles, and data pipeline
+configuration. Stage three is data migration, which typically completes
+within two to three weeks depending on data volume and source system
+complexity. Stage four is the go-live review and handoff to the customer
+success team. Each enterprise account is assigned a dedicated Customer
+Success Manager who acts as the primary point of contact for escalations,
+quarterly business reviews, and renewal discussions. Average time to
+full onboarding completion is six weeks for standard deployments and up
+to twelve weeks for accounts requiring custom integrations.

@@ -1,0 +1,13 @@
+Platform Architecture Overview - Acme Cloud Services
+
+The platform ingests customer data through a distributed ETL pipeline
+before landing it in an analytical warehouse for downstream querying.
+Semantic search over unstructured documents is powered by a vector index
+built from document embeddings, with a reranking stage applied to the
+top candidates before they are passed to the language model for grounded
+answer generation. AI agents orchestrate between structured data queries
+and document retrieval depending on the nature of the incoming question,
+using a planner stage to route each request to the appropriate tool.
+Tool access is exposed through a standardized protocol so that agents,
+whether internal or third-party, can discover and invoke available
+capabilities without tight coupling to the underlying implementation.

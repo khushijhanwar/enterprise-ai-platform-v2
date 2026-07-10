@@ -1,0 +1,12 @@
+Pricing FAQ - Acme Cloud Services
+
+Acme Cloud Services offers three tiers: Starter, Growth, and Enterprise.
+The Enterprise tier includes volume discounts starting at 100,000 API
+calls per month, dedicated support with a one-hour SLA for critical
+incidents, and custom contract terms. Growth tier customers are billed
+monthly based on usage, with no long-term commitment required. Starter
+tier is free for the first 10,000 API calls per month, after which
+standard pay-as-you-go pricing applies. All tiers include access to the
+platform's core AI agent capabilities, though advanced workflow
+orchestration features are Enterprise-only. Enterprise contracts are
+billed annually with net-30 payment terms.
