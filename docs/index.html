@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enterprise AI Platform — production-architecture RAG on a free local stack</title>
+<meta name="description" content="A production-architecture RAG + AI agent platform running entirely on a free, local, open-source stack. PySpark, DuckDB, FAISS, LangGraph, Ollama, FastMCP.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0d12;
+    --bg-raised: #10141b;
+    --panel: #131822;
+    --line: #232a35;
+    --line-soft: #1a212c;
+    --text: #e7ecf2;
+    --text-dim: #8b96a5;
+    --text-faint: #5b6472;
+    --accent: #55d6c2;
+    --accent-dim: #2f7a6d;
+    --accent-wash: rgba(85,214,194,0.09);
+    --prod: #7a8290;
+    --free: #55d6c2;
+    --radius: 6px;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: 'Space Grotesk', system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg: #0a0d12; --bg-raised:#10141b; --panel:#131822; --line:#232a35; --line-soft:#1a212c;
+      --text:#e7ecf2; --text-dim:#8b96a5; --text-faint:#5b6472;
+    }
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection{ background: var(--accent); color: #06110f; }
+
+  a{ color: var(--accent); text-decoration: none; }
+  a:hover{ text-decoration: underline; }
+  a:focus-visible, button:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap{ max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+  code, pre, .mono{ font-family: var(--mono); }
+
+  /* ---------- header ---------- */
+  header{
+    position: sticky; top:0; z-index: 20;
+    background: rgba(10,13,18,0.86);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .nav{ display:flex; align-items:center; justify-content:space-between; padding: 16px 28px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; color:var(--text); }
+  .brand .dot{ width:9px; height:9px; border-radius:2px; background: var(--accent); transform: rotate(45deg); flex:none; }
+  .navlinks{ display:flex; align-items:center; gap: 28px; font-size: 14px; color: var(--text-dim); }
+  .navlinks a{ color: var(--text-dim); }
+  .navlinks a:hover{ color: var(--text); text-decoration:none; }
+  .gh-btn{
+    display:inline-flex; align-items:center; gap:8px;
+    border:1px solid var(--line); border-radius: var(--radius);
+    padding: 7px 14px; color: var(--text) !important; font-size: 13px; font-family: var(--mono);
+  }
+  .gh-btn:hover{ border-color: var(--accent); text-decoration:none; }
+  @media (max-width: 720px){ .navlinks{ display:none; } }
+
+  /* ---------- hero ---------- */
+  .hero{ padding: 84px 0 60px; }
+  .hero-grid{ display:grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: start; }
+  @media (max-width: 900px){ .hero-grid{ grid-template-columns: 1fr; } }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:8px;
+    border:1px solid var(--line); border-radius: 999px;
+    padding: 5px 12px; font-family: var(--mono); font-size:12.5px; color: var(--text-dim);
+    margin-bottom: 26px;
+  }
+  .badge .led{ width:6px; height:6px; border-radius:50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  h1{
+    font-size: clamp(2.3rem, 4.6vw, 3.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    margin: 0 0 22px;
+    font-weight: 600;
+  }
+  h1 .under{ text-decoration: underline solid var(--accent-dim) 3px; text-underline-offset: 6px; }
+
+  .lede{ color: var(--text-dim); font-size: 17px; max-width: 46ch; margin: 0 0 34px; }
+
+  .cta-row{ display:flex; gap:12px; flex-wrap: wrap; margin-bottom: 44px; }
+  .btn{
+    font-family: var(--sans); font-weight: 600; font-size: 14.5px;
+    padding: 12px 20px; border-radius: var(--radius); border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary{ background: var(--accent); color: #06110f; }
+  .btn-primary:hover{ background: #6fe3d1; text-decoration:none; }
+  .btn-secondary{ background: transparent; color: var(--text); border-color: var(--line); }
+  .btn-secondary:hover{ border-color: var(--text-dim); text-decoration:none; }
+
+  .statline{ display:flex; gap: 34px; flex-wrap: wrap; border-top: 1px solid var(--line-soft); padding-top: 22px; }
+  .stat b{ display:block; font-size: 22px; font-family: var(--mono); color: var(--text); font-weight:600; }
+  .stat span{ font-size: 13px; color: var(--text-faint); }
+
+  /* terminal panel */
+  .term{
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; box-shadow: 0 30px 60px -30px rgba(0,0,0,0.6);
+  }
+  .term-bar{
+    display:flex; align-items:center; gap:8px; padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft); background: var(--bg-raised);
+  }
+  .term-dot{ width:10px; height:10px; border-radius:50%; background: var(--line); }
+  .term-title{ margin-left: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-faint); }
+  .term-body{ padding: 20px 20px 22px; font-family: var(--mono); font-size: 13px; }
+  .term-body .ln{ margin: 0 0 9px; white-space: pre-wrap; word-break: break-word; }
+  .term-body .prompt{ color: var(--accent); }
+  .term-body .cmd{ color: var(--text); }
+  .term-body .out{ color: var(--text-dim); }
+  .term-body .dim{ color: var(--text-faint); }
+  .term-body .flag{ color: #e3b559; }
+
+  /* ---------- section shell ---------- */
+  section{ padding: 62px 0; border-top: 1px solid var(--line-soft); }
+  .section-head{ margin-bottom: 34px; max-width: 60ch; }
+  .section-head h2{ font-size: 1.55rem; font-weight: 600; margin: 0 0 10px; }
+  .section-head p{ color: var(--text-dim); margin:0; font-size: 15px; }
+
+  /* ---------- architecture diagram ---------- */
+  .diagram{
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 26px 24px; overflow-x: auto;
+  }
+  .diagram pre{
+    margin:0; font-size: 12.6px; line-height: 1.65; color: var(--text-dim); min-width: 560px;
+  }
+  .diagram pre .node{ color: var(--text); }
+  .diagram pre .tag{ color: var(--accent); }
+
+  /* ---------- mapping table ---------- */
+  .maptable{ width:100%; border-collapse: collapse; font-size: 14px; }
+  .maptable-wrap{ border: 1px solid var(--line); border-radius: 10px; overflow: hidden; overflow-x:auto; }
+  .maptable th{
+    text-align:left; font-weight: 600; font-size: 12.5px; color: var(--text-faint);
+    padding: 12px 16px; background: var(--bg-raised); border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .maptable td{ padding: 13px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  .maptable tr:last-child td{ border-bottom:none; }
+  .maptable td.layer{ color: var(--text); font-weight: 500; white-space: nowrap; }
+  .maptable td.prod{ color: var(--prod); font-family: var(--mono); font-size: 13px; }
+  .maptable td.free code{ color: var(--free); background: var(--accent-wash); padding: 1px 6px; border-radius: 4px; font-size: 12.6px; }
+  .maptable td.free{ color: var(--text-dim); font-size: 13.5px; }
+
+  /* ---------- layout tree + install ---------- */
+  .two-col{ display:grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 860px){ .two-col{ grid-template-columns: 1fr; } }
+
+  .codeblock{
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden;
+  }
+  .codeblock .cb-head{
+    display:flex; justify-content: space-between; align-items:center;
+    padding: 9px 14px; border-bottom: 1px solid var(--line-soft); background: var(--bg-raised);
+  }
+  .codeblock .cb-head span{ font-family: var(--mono); font-size: 12px; color: var(--text-faint); }
+  .copy-btn{
+    font-family: var(--mono); font-size: 11.5px; color: var(--text-dim);
+    background: transparent; border: 1px solid var(--line); border-radius: 4px;
+    padding: 3px 9px; cursor:pointer;
+  }
+  .copy-btn:hover{ color: var(--text); border-color: var(--text-dim); }
+  .codeblock pre{ margin:0; padding: 16px 18px; font-size: 12.6px; line-height:1.7; color: var(--text-dim); overflow-x:auto; }
+  .codeblock pre .k{ color: var(--accent); }
+  .codeblock pre .c{ color: var(--text-faint); }
+
+  /* ---------- install steps ---------- */
+  .steps{ counter-reset: step; display:flex; flex-direction: column; gap: 0; }
+  .step{ display:grid; grid-template-columns: 40px 1fr; gap: 18px; padding: 22px 0; border-top: 1px solid var(--line-soft); }
+  .step:first-child{ border-top:none; }
+  .step-num{ counter-increment: step; font-family: var(--mono); color: var(--accent); font-size: 14px; padding-top: 2px; }
+  .step-num::before{ content: counter(step); }
+  .step h3{ margin: 0 0 6px; font-size: 15.5px; font-weight:600; }
+  .step p{ margin: 0 0 12px; color: var(--text-dim); font-size: 14px; max-width: 62ch; }
+
+  /* ---------- fallback note ---------- */
+  .note{
+    display:flex; gap:12px; background: var(--accent-wash);
+    border: 1px solid var(--accent-dim); border-radius: 8px; padding: 14px 16px;
+    font-size: 13.5px; color: var(--text-dim); margin-top: 18px;
+  }
+  .note b{ color: var(--text); }
+
+  footer{ border-top: 1px solid var(--line-soft); padding: 40px 0 60px; }
+  .foot-row{ display:flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; align-items:center; }
+  .topics{ display:flex; flex-wrap:wrap; gap:8px; margin-top: 18px; }
+  .topics span{
+    font-family: var(--mono); font-size: 11.5px; color: var(--text-faint);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px;
+  }
+  footer .fine{ color: var(--text-faint); font-size: 13px; }
+
+  ::-webkit-scrollbar{ height: 8px; width: 8px; }
+  ::-webkit-scrollbar-thumb{ background: var(--line); border-radius: 4px; }
+
+  /* ---------- reveal-on-scroll (single pass, once) ---------- */
+  .reveal{ opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce){
+    .reveal{ opacity:1; transform:none; transition:none; }
+  }
+
+  /* ---------- active nav ---------- */
+  .navlinks a.active{ color: var(--text); }
+
+  /* ---------- animated stat counters ---------- */
+  .stat b{ font-variant-numeric: tabular-nums; }
+
+  /* ---------- svg architecture diagram ---------- */
+  .flowsvg{ width:100%; height:auto; display:block; min-width: 620px; }
+  .flowsvg text{ font-family: var(--mono); fill: var(--text-dim); }
+  .flowsvg text.node{ fill: var(--text); font-weight: 600; }
+  .flowsvg text.tag{ fill: var(--accent); font-weight: 600; }
+  .flowsvg .box{ fill: var(--bg-raised); stroke: var(--line); }
+  .flowsvg .accentbox{ fill: var(--accent-wash); stroke: var(--accent-dim); }
+  .flowsvg .wire{ stroke: var(--line); stroke-width: 1.5; fill:none; }
+  .flowsvg .pulse{
+    stroke: var(--accent); stroke-width: 2; fill:none;
+    stroke-dasharray: 6 10; animation: flow 2.4s linear infinite;
+  }
+  @keyframes flow{ to{ stroke-dashoffset: -160; } }
+  @media (prefers-reduced-motion: reduce){ .flowsvg .pulse{ animation: none; } }
+
+  /* ---------- live routing demo ---------- */
+  .demo-panel{ display:grid; grid-template-columns: 260px 1fr; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow:hidden; }
+  @media (max-width: 780px){ .demo-panel{ grid-template-columns: 1fr; } }
+  .demo-qs{ background: var(--bg-raised); border-right: 1px solid var(--line-soft); padding: 18px; display:flex; flex-direction:column; gap:8px; }
+  @media (max-width: 780px){ .demo-qs{ border-right:none; border-bottom: 1px solid var(--line-soft); flex-direction: row; overflow-x:auto; } }
+  .demo-qs .qlabel{ font-family: var(--mono); font-size: 11px; color: var(--text-faint); margin-bottom: 4px; }
+  .qbtn{
+    text-align:left; background: transparent; border: 1px solid var(--line); color: var(--text-dim);
+    border-radius: 8px; padding: 10px 12px; font-family: var(--sans); font-size: 13px; cursor:pointer;
+    white-space: normal;
+  }
+  @media (max-width: 780px){ .qbtn{ white-space: nowrap; } }
+  .qbtn:hover{ border-color: var(--accent-dim); color: var(--text); }
+  .qbtn.active{ border-color: var(--accent); color: var(--text); background: var(--accent-wash); }
+  .demo-out{ padding: 22px 24px; font-family: var(--mono); font-size: 13.5px; min-height: 210px; background: var(--panel); }
+  .demo-out .route{ display:inline-flex; align-items:center; gap:8px; color: var(--accent); font-size:12.5px; margin-bottom: 14px; }
+  .demo-out .route .rdot{ width:6px; height:6px; border-radius:50%; background: var(--accent); }
+  .demo-out .answer{ color: var(--text-dim); line-height: 1.7; }
+  .demo-out .cursor{ display:inline-block; width:7px; height:14px; background: var(--accent); vertical-align:-2px; animation: blink 1s step-start infinite; }
+  @keyframes blink{ 50%{ opacity:0; } }
+  .demo-input-row{ display:flex; gap:8px; margin-top:auto; }
+  .demo-input-row input{
+    flex:1; background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 9px 11px; color: var(--text); font-family: var(--sans); font-size: 13px;
+  }
+  .demo-input-row input:focus{ outline: 1px solid var(--accent); border-color: var(--accent); }
+  .demo-input-row button{ font-family: var(--mono); font-size: 12.5px; }
+  .demo-sql{ background: var(--bg-raised); border: 1px solid var(--line-soft); border-radius: 6px; padding: 12px 14px; font-size: 12px; color: var(--text-dim); margin: 0 0 14px; overflow-x:auto; }
+  .demo-table{ width:100%; border-collapse: collapse; font-size: 12px; }
+  .demo-table th{ text-align:left; color: var(--text-faint); font-weight:600; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space:nowrap; }
+  .demo-table td{ padding: 7px 10px; border-bottom: 1px solid var(--line-soft); color: var(--text-dim); white-space:nowrap; }
+  .demo-table tr:last-child td{ border-bottom:none; }
+
+  /* ---------- screenshot gallery ---------- */
+  .gallery{ display:grid; grid-template-columns: 220px 1fr; gap: 24px; align-items:start; }
+  @media (max-width: 820px){ .gallery{ grid-template-columns: 1fr; } }
+  .gtabs{ display:flex; flex-direction:column; gap:6px; }
+  @media (max-width: 820px){ .gtabs{ flex-direction:row; overflow-x:auto; } }
+  .gtab{
+    text-align:left; background: transparent; border: 1px solid var(--line); color: var(--text-dim);
+    border-radius: 8px; padding: 12px 14px; font-family: var(--sans); font-size: 13px; cursor:pointer;
+  }
+  @media (max-width: 820px){ .gtab{ white-space:nowrap; } }
+  .gtab .gcount{ display:block; font-family: var(--mono); font-size: 11px; color: var(--text-faint); margin-top:3px; }
+  .gtab:hover{ border-color: var(--accent-dim); color: var(--text); }
+  .gtab.active{ border-color: var(--accent); color: var(--text); background: var(--accent-wash); }
+  .gframe{
+    border: 1px solid var(--line); border-radius: 10px; overflow:hidden; background: var(--panel);
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,0.6);
+  }
+  .gframe img{ display:block; width:100%; height:auto; opacity: 0; transition: opacity .35s ease; }
+  .gframe img.loaded{ opacity: 1; }
+  .gcaption{ padding: 12px 16px; border-top: 1px solid var(--line-soft); font-size: 13px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav wrap">
+    <div class="brand"><span class="dot"></span> enterprise-ai-platform-v2</div>
+    <nav class="navlinks">
+      <a href="#architecture" data-nav>Architecture</a>
+      <a href="#screens" data-nav>Screens</a>
+      <a href="#demo" data-nav>Live demo</a>
+      <a href="#stack" data-nav>Stack mapping</a>
+      <a href="#install" data-nav>Install</a>
+    </nav>
+    <a class="gh-btn" href="https://github.com/khushijhanwar/enterprise-ai-platform-v2" target="_blank" rel="noopener">
+      ⭐ GitHub
+    </a>
+  </div>
+</header>
+
+<main>
+  <section class="hero" style="border-top:none;">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="badge"><span class="led"></span> MIT licensed · runs fully offline</div>
+        <h1>A RAG stack that runs<br>on <span class="under">nothing but your laptop.</span></h1>
+        <p class="lede">Every layer of this platform — ETL, warehouse, vector search, reranking, agent routing, generation — is the real open-source technology production teams use, wired together to run locally with no cloud bill and no API key.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/khushijhanwar/enterprise-ai-platform-v2" target="_blank" rel="noopener">View source on GitHub</a>
+          <a class="btn btn-secondary" href="#install">Run it yourself →</a>
+        </div>
+        <div class="statline">
+          <div class="stat"><b data-count="12">0</b><span>production layers mapped</span></div>
+          <div class="stat"><b data-count="0">0</b><span>cloud API keys required</span></div>
+          <div class="stat"><b data-count="2">0</b><span>components with graceful fallback</span></div>
+        </div>
+      </div>
+
+      <div class="term">
+        <div class="term-bar">
+          <span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span>
+          <span class="term-title">demo.py</span>
+        </div>
+        <div class="term-body" id="bootTerm"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>How a question moves through the system</h2>
+        <p>Two ingestion paths — structured accounts data and unstructured policy docs — converge in a LangGraph agent that decides which tool a question needs. The dashed lines are live: this is the actual path a request travels.</p>
+      </div>
+      <div class="diagram reveal">
+        <svg class="flowsvg" viewBox="0 0 900 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Data flow diagram: CSV and documents flow through ETL and RAG pipelines into a LangGraph agent, then Ollama generation, then the API and frontend.">
+          <!-- sources -->
+          <rect class="box" x="20" y="16" width="190" height="34" rx="6"/>
+          <text class="node" x="115" y="38" text-anchor="middle" font-size="13">accounts_raw.csv</text>
+          <rect class="box" x="500" y="16" width="200" height="34" rx="6"/>
+          <text class="node" x="600" y="38" text-anchor="middle" font-size="13">sample_docs/*.txt</text>
+
+          <!-- wires down to stage 1 -->
+          <path class="wire" d="M115,50 V88"/>
+          <path class="pulse" d="M115,50 V88"/>
+          <path class="wire" d="M600,50 V88"/>
+          <path class="pulse" d="M600,50 V88"/>
+
+          <rect class="accentbox" x="20" y="90" width="190" height="34" rx="6"/>
+          <text class="tag" x="115" y="112" text-anchor="middle" font-size="12.5">Spark ETL (local)</text>
+          <rect class="accentbox" x="460" y="90" width="280" height="34" rx="6"/>
+          <text class="tag" x="600" y="112" text-anchor="middle" font-size="12.5">LangChain loader → splitter</text>
+
+          <path class="wire" d="M115,124 V162"/>
+          <path class="pulse" d="M115,124 V162"/>
+          <path class="wire" d="M600,124 V162"/>
+          <path class="pulse" d="M600,124 V162"/>
+
+          <rect class="box" x="20" y="164" width="190" height="34" rx="6"/>
+          <text class="tag" x="115" y="186" text-anchor="middle" font-size="12.5">DuckDB warehouse</text>
+          <rect class="box" x="460" y="164" width="280" height="34" rx="6"/>
+          <text class="node" x="600" y="186" text-anchor="middle" font-size="12.5"><tspan class="tag">BGE embed</tspan> → <tspan class="tag">FAISS index</tspan></text>
+
+          <path class="wire" d="M600,198 V236"/>
+          <path class="pulse" d="M600,198 V236"/>
+          <rect class="accentbox" x="480" y="238" width="240" height="34" rx="6"/>
+          <text class="tag" x="600" y="260" text-anchor="middle" font-size="12.5">Cross-encoder reranker</text>
+
+          <!-- merge into LangGraph -->
+          <path class="wire" d="M115,198 V300 H370"/>
+          <path class="pulse" d="M115,198 V300 H370"/>
+          <path class="wire" d="M600,272 V300 H430"/>
+          <path class="pulse" d="M600,272 V300 H430"/>
+
+          <rect class="box" x="300" y="302" width="300" height="46" rx="6"/>
+          <text class="node" x="450" y="322" text-anchor="middle" font-size="13">LangGraph planner</text>
+          <text x="450" y="339" text-anchor="middle" font-size="11" class="dim">routes to sql_agent or document_agent</text>
+
+          <path class="wire" d="M450,348 V376"/>
+          <path class="pulse" d="M450,348 V376"/>
+
+          <rect class="accentbox" x="310" y="378" width="280" height="34" rx="6"/>
+          <text class="tag" x="450" y="400" text-anchor="middle" font-size="12.5">Ollama · Qwen2.5:7B</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section id="screens">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>What it actually looks like</h2>
+        <p>Real screenshots of the running app, pulled straight from the repo — not mockups.</p>
+      </div>
+      <div class="gallery reveal">
+        <div class="gtabs">
+          <button class="gtab active" data-img="ss3.png" data-caption="Ask the platform — a policy question routed to document_retrieval, with the retrieved chunk and its relevance score shown below.">Ask the platform<span class="gcount">RAG + citations</span></button>
+          <button class="gtab" data-img="ss6.png" data-caption="A custom analytical question, routed to sql_query, showing the generated SQL and the live result set.">SQL agent<span class="gcount">generated SQL</span></button>
+          <button class="gtab" data-img="ss4.png" data-caption="Knowledge graph tab — built with NetworkX over the document corpus, surfacing bridging concepts by betweenness centrality.">Knowledge graph<span class="gcount">21 concepts · 57 relations</span></button>
+          <button class="gtab" data-img="ss5.png" data-caption="Data ingestion tab — triggers the real PySpark ETL job against accounts_raw.csv and lands it in DuckDB.">Data ingestion<span class="gcount">real Spark job</span></button>
+        </div>
+        <div>
+          <div class="gframe">
+            <img id="gimg" src="https://raw.githubusercontent.com/khushijhanwar/enterprise-ai-platform-v2/main/screenshots/ss3.png" alt="Screenshot of the Enterprise AI Platform Streamlit app, ask-the-platform tab">
+            <div class="gcaption" id="gcaption">Ask the platform — a policy question routed to document_retrieval, with the retrieved chunk and its relevance score shown below.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Try the routing live</h2>
+        <p>These questions run against the platform's synthetic sample data. Pick one, or type your own — you'll see which agent it routes to before the answer comes back.</p>
+      </div>
+      <div class="demo-panel reveal">
+        <div class="demo-qs">
+          <div class="qlabel">SAMPLE QUESTIONS</div>
+          <button class="qbtn" data-q="onboarding">How long does enterprise onboarding take?</button>
+          <button class="qbtn" data-q="accounts">What are the top 5 accounts by spend?</button>
+          <button class="qbtn" data-q="compliance">What compliance certifications does the platform have?</button>
+          <div class="demo-input-row">
+            <input type="text" id="demoInput" placeholder="Ask your own…" aria-label="Ask your own question">
+            <button class="btn btn-secondary" id="demoAsk">Ask</button>
+          </div>
+        </div>
+        <div class="demo-out" id="demoOut">
+          <span class="answer">Pick a question on the left to see it routed and answered.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Production → free-stack mapping</h2>
+        <p>Every technology below is genuinely running, not stubbed out. Each module's docstring repeats the exact line you'd change to point at the managed service instead.</p>
+      </div>
+      <div class="maptable-wrap">
+        <table class="maptable">
+          <thead>
+            <tr><th>Layer</th><th>Production</th><th>This project (free, local)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="layer">Distributed ETL</td><td class="prod">Spark (cluster)</td><td class="free">Real <code>PySpark</code>, local mode — only <code>master()</code> changes for a cluster</td></tr>
+            <tr><td class="layer">Analytical warehouse</td><td class="prod">BigQuery</td><td class="free"><code>DuckDB</code> — same SQL dialect family, in-process columnar engine</td></tr>
+            <tr><td class="layer">Vector database</td><td class="prod">AlloyDB Vector Search</td><td class="free"><code>FAISS</code> — the ANN library underlying much of production vector search</td></tr>
+            <tr><td class="layer">Embeddings</td><td class="prod">Gemini embeddings</td><td class="free"><code>BGE-small-en-v1.5</code> via sentence-transformers</td></tr>
+            <tr><td class="layer">Reranking</td><td class="prod">often skipped</td><td class="free"><code>BGE cross-encoder</code> — genuine two-stage retrieve-then-rerank</td></tr>
+            <tr><td class="layer">Doc/chunk handling</td><td class="prod">LangChain (cloud loaders)</td><td class="free"><code>LangChain</code> — same library, local file loader</td></tr>
+            <tr><td class="layer">LLM</td><td class="prod">Gemini</td><td class="free"><code>Ollama + Qwen2.5:7B</code> — fully local inference</td></tr>
+            <tr><td class="layer">Agent framework</td><td class="prod">Google ADK</td><td class="free"><code>LangGraph</code> — typed-state multi-agent graphs</td></tr>
+            <tr><td class="layer">Tool protocol</td><td class="prod">MCP</td><td class="free"><code>FastMCP</code> — real MCP server, real tool discovery</td></tr>
+            <tr><td class="layer">Graph analytics</td><td class="prod">Neo4j / Spanner Graph</td><td class="free"><code>NetworkX</code> — in-memory graph + centrality</td></tr>
+            <tr><td class="layer">API layer</td><td class="prod">FastAPI (cloud)</td><td class="free"><code>FastAPI</code> — identical, on localhost</td></tr>
+            <tr><td class="layer">Frontend</td><td class="prod">Streamlit / internal tool</td><td class="free"><code>Streamlit</code> — identical</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note"><span>ⓘ</span><div><b>Two components fall back gracefully</b> if a first-run download is unavailable: BGE embeddings/reranker fall back to local TF-IDF, and Ollama generation falls back to extractive, quote-and-cite answers. Neither hard-crashes the app — <code>check_setup.py</code> tells you which mode you're in.</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Project layout</h2>
+        <p>One FastAPI app, one Streamlit frontend, and a demo script that walks every stage without starting a server.</p>
+      </div>
+      <div class="two-col">
+        <div class="codeblock">
+          <div class="cb-head"><span>tree</span></div>
+          <pre>app/
+  api/       <span class="c">chat.py, ingest.py, sql.py</span>
+  rag/       <span class="c">loader, splitter, embeddings,</span>
+             <span class="c">vectorstore, retriever, reranker</span>
+  llm/       <span class="c">ollama.py</span>
+  agents/    <span class="c">planner, sql_agent,</span>
+             <span class="c">document_agent, workflow_agent</span>
+  warehouse/ <span class="c">duckdb.py</span>
+  graph/     <span class="c">knowledge_graph.py</span>
+  etl/       <span class="c">spark_pipeline.py</span>
+  main.py    <span class="c">FastAPI entry point</span>
+  mcp_server.py <span class="c">FastMCP server</span>
+data/
+  accounts_raw.csv    <span class="c">synthetic ETL input</span>
+  sample_docs/*.txt   <span class="c">synthetic policy docs</span>
+demo.py       <span class="c">one-shot CLI walkthrough</span>
+streamlit_app.py
+check_setup.py</pre>
+        </div>
+        <div class="codeblock">
+          <div class="cb-head"><span>what check_setup.py verifies</span></div>
+          <pre><span class="k">✓</span> BGE embeddings loaded (or TF-IDF fallback)
+<span class="k">✓</span> Ollama reachable + qwen2.5:7b pulled
+<span class="k">✓</span> FAISS index built from sample_docs
+<span class="k">✓</span> DuckDB warehouse populated
+<span class="k">✓</span> FastMCP tools registered
+  <span class="c">→ document_search</span>
+  <span class="c">→ sql_query</span>
+  <span class="c">→ related_knowledge_concepts</span>
+
+<span class="c"># tells you exactly which components</span>
+<span class="c"># are at full strength vs. fallback,</span>
+<span class="c"># and what closes the gap.</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Running it</h2>
+        <p>No cloud account, no API key. Ollama is optional but recommended — without it the app falls back to extractive, retrieval-only answers.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num"></div>
+          <div>
+            <h3>Install dependencies</h3>
+            <p>A virtual environment is optional but recommended. PySpark also needs a JRE.</p>
+            <div class="codeblock">
+              <div class="cb-head"><span>bash</span><button class="copy-btn" data-copy="python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env">copy</button></div>
+              <pre>python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env</pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div>
+            <h3>Pull a local model (recommended)</h3>
+            <p>The app runs without this step, falling back to extractive answers — but this is what turns on grounded generation.</p>
+            <div class="codeblock">
+              <div class="cb-head"><span>bash</span><button class="copy-btn" data-copy="ollama pull qwen2.5:7b">copy</button></div>
+              <pre># install Ollama from https://ollama.com, then:
+ollama pull qwen2.5:7b</pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div>
+            <h3>Check what's active</h3>
+            <p>Confirms which components are running at full strength vs. their offline fallback.</p>
+            <div class="codeblock">
+              <div class="cb-head"><span>bash</span><button class="copy-btn" data-copy="python check_setup.py">copy</button></div>
+              <pre>python check_setup.py</pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div>
+            <h3>Run the one-shot demo</h3>
+            <p>Walks through Spark ETL → LangGraph agent routing → RAG → graph analytics → MCP tool calls, printed to your terminal.</p>
+            <div class="codeblock">
+              <div class="cb-head"><span>bash</span><button class="copy-btn" data-copy="python demo.py">copy</button></div>
+              <pre>python demo.py</pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div>
+            <h3>Or run the full app</h3>
+            <p>Two terminals: the FastAPI backend, then the Streamlit frontend that calls it over HTTP.</p>
+            <div class="codeblock">
+              <div class="cb-head"><span>bash</span><button class="copy-btn" data-copy="uvicorn app.main:app --reload --port 8000
+streamlit run streamlit_app.py">copy</button></div>
+              <pre># terminal 1
+uvicorn app.main:app --reload --port 8000
+
+# terminal 2
+streamlit run streamlit_app.py</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row">
+      <div class="fine">MIT licensed · <a href="https://github.com/khushijhanwar/enterprise-ai-platform-v2">github.com/khushijhanwar/enterprise-ai-platform-v2</a></div>
+      <a class="btn btn-secondary" href="https://github.com/khushijhanwar/enterprise-ai-platform-v2" target="_blank" rel="noopener">View repository</a>
+    </div>
+    <div class="topics">
+      <span>agent</span><span>langchain</span><span>langgraph</span><span>llm</span><span>mcp</span>
+      <span>pyspark</span><span>rag</span><span>vector-search</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- copy buttons ----
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const text = btn.getAttribute('data-copy') || '';
+      try {
+        await navigator.clipboard.writeText(text);
+        const old = btn.textContent;
+        btn.textContent = 'copied';
+        setTimeout(() => { btn.textContent = old; }, 1400);
+      } catch (e) { /* clipboard unavailable, no-op */ }
+    });
+  });
+
+  // ---- reveal-on-scroll, once ----
+  const revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && !reduceMotion) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.15 });
+    revealEls.forEach(el => io.observe(el));
+  } else {
+    revealEls.forEach(el => el.classList.add('in'));
+  }
+
+  // ---- active nav link on scroll ----
+  const navLinks = document.querySelectorAll('[data-nav]');
+  const targets = Array.from(navLinks).map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  if ('IntersectionObserver' in window && targets.length) {
+    const navIo = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        const link = document.querySelector('[data-nav][href="#' + e.target.id + '"]');
+        if (!link) return;
+        if (e.isIntersecting) navLinks.forEach(l => l.classList.toggle('active', l === link));
+      });
+    }, { rootMargin: '-45% 0px -45% 0px' });
+    targets.forEach(t => navIo.observe(t));
+  }
+
+  // ---- animated stat counters, once ----
+  const counters = document.querySelectorAll('[data-count]');
+  const animateCount = (el) => {
+    const target = parseInt(el.getAttribute('data-count'), 10);
+    if (reduceMotion || target === 0) { el.textContent = target; return; }
+    let start = null;
+    const dur = 900;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / dur, 1);
+      el.textContent = Math.round(p * target);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  if ('IntersectionObserver' in window) {
+    const cIo = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { animateCount(e.target); cIo.unobserve(e.target); } });
+    }, { threshold: 0.6 });
+    counters.forEach(el => cIo.observe(el));
+  } else {
+    counters.forEach(el => el.textContent = el.getAttribute('data-count'));
+  }
+
+  // ---- boot terminal typewriter, once on load ----
+  const bootLines = [
+    { t: 'cmd', text: '$ python check_setup.py' },
+    { t: 'out', text: 'BGE embeddings ......... active' },
+    { t: 'out', text: 'Ollama (qwen2.5:7b) .... active' },
+    { t: 'out', text: 'FAISS index ............ built, 412 chunks' },
+    { t: 'gap' },
+    { t: 'cmd', text: '$ python demo.py' },
+    { t: 'out', text: '[etl] Spark job → accounts_raw.csv → DuckDB' },
+    { t: 'out', text: '[rag] loader → splitter → BGE embed → FAISS' },
+    { t: 'out', text: '[rerank] cross-encoder re-scoring top-k' },
+    { t: 'out', text: '[graph] planner → document_agent' },
+    { t: 'out', text: '[llm] Ollama qwen2.5:7b — grounded answer' },
+    { t: 'out', text: '[mcp] document_search tool call ✓' },
+  ];
+  const bootTerm = document.getElementById('bootTerm');
+  function typeBootTerminal() {
+    if (!bootTerm) return;
+    if (reduceMotion) {
+      bootTerm.innerHTML = bootLines.map(l => l.t === 'gap' ? '<p class="ln">&nbsp;</p>' : `<p class="ln ${l.t === 'cmd' ? '' : 'out'}">${l.t === 'cmd' ? '<span class="prompt">$</span> <span class="cmd">' + l.text.slice(2) + '</span>' : l.text}</p>`).join('');
+      return;
+    }
+    let i = 0;
+    const next = () => {
+      if (i >= bootLines.length) return;
+      const l = bootLines[i];
+      const p = document.createElement('p');
+      p.className = l.t === 'gap' ? 'ln' : 'ln ' + (l.t === 'out' ? 'out' : '');
+      if (l.t === 'gap') { p.innerHTML = '&nbsp;'; bootTerm.appendChild(p); i++; next(); return; }
+      if (l.t === 'cmd') {
+        p.innerHTML = '<span class="prompt">$</span> <span class="cmd"></span>';
+        bootTerm.appendChild(p);
+        const cmdSpan = p.querySelector('.cmd');
+        const text = l.text.slice(2);
+        let c = 0;
+        const type = () => {
+          cmdSpan.textContent = text.slice(0, c);
+          c++;
+          if (c <= text.length) { setTimeout(type, 18); }
+          else { i++; setTimeout(next, 220); }
+        };
+        type();
+      } else {
+        p.textContent = l.text;
+        bootTerm.appendChild(p);
+        i++;
+        setTimeout(next, 140);
+      }
+    };
+    next();
+  }
+  typeBootTerminal();
+
+  // ---- live routing demo ----
+  const demoData = {
+    onboarding: {
+      q: 'How long does enterprise onboarding take?',
+      tool: 'document_retrieval',
+      answer: 'Enterprise onboarding typically takes up to twelve weeks for accounts requiring custom integrations, as stated in onboarding_guide.txt (chunk 4). For standard deployments, it is six weeks.'
+    },
+    accounts: {
+      q: 'What are the top 5 accounts by spend?',
+      tool: 'sql_query',
+      sql: 'SELECT account_id, account_name, plan, monthly_spend_usd,\n       signup_date, is_high_value\nFROM accounts\nORDER BY monthly_spend_usd DESC\nLIMIT 5',
+      table: {
+        head: ['account_id', 'account_name', 'plan', 'monthly_spend_usd'],
+        rows: [
+          ['ACC-1032', 'Customer 32', 'Enterprise', '24982.10'],
+          ['ACC-1213', 'Customer 213', 'Growth', '24863.41'],
+          ['ACC-1104', 'Customer 104', 'Starter', '24848.26'],
+          ['ACC-1265', 'Customer 265', 'Growth', '24765.86'],
+          ['ACC-1155', 'Customer 155', 'Starter', '24524.15']
+        ]
+      }
+    },
+    compliance: {
+      q: 'What compliance certifications does the platform have?',
+      tool: 'document_retrieval',
+      answer: 'Acme Cloud Services is SOC 2 Type II certified and undergoes annual third-party penetration testing. The platform also supports Business Associate Agreements for HIPAA compliance when customers on the Enterprise plan request them, and Data Processing Addenda for GDPR compliance. [security_overview.txt]'
+    }
+  };
+  const demoOut = document.getElementById('demoOut');
+  const qBtns = document.querySelectorAll('.qbtn');
+  function renderDemo(entry) {
+    qBtns.forEach(b => b.classList.remove('active'));
+    demoOut.innerHTML = '<span class="route"><span class="rdot"></span>routing…</span>';
+    const routeEl = demoOut.querySelector('.route');
+    setTimeout(() => {
+      routeEl.innerHTML = '<span class="rdot"></span>Routed to tool: ' + entry.tool;
+
+      if (entry.table) {
+        const sqlPre = document.createElement('pre');
+        sqlPre.className = 'demo-sql';
+        sqlPre.textContent = entry.sql;
+        demoOut.appendChild(sqlPre);
+        const tbl = document.createElement('table');
+        tbl.className = 'demo-table';
+        const thead = document.createElement('thead');
+        thead.innerHTML = '<tr>' + entry.table.head.map(h => '<th>' + h + '</th>').join('') + '</tr>';
+        tbl.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        entry.table.rows.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = r.map(c => '<td>' + c + '</td>').join('');
+          tbody.appendChild(tr);
+        });
+        tbl.appendChild(tbody);
+        tbl.style.opacity = 0;
+        demoOut.appendChild(tbl);
+        requestAnimationFrame(() => { tbl.style.transition = 'opacity .35s ease'; tbl.style.opacity = 1; });
+        return;
+      }
+
+      const ans = document.createElement('div');
+      ans.className = 'answer';
+      demoOut.appendChild(ans);
+      if (reduceMotion) { ans.textContent = entry.answer; return; }
+      let c = 0;
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor';
+      const type = () => {
+        ans.textContent = entry.answer.slice(0, c);
+        ans.appendChild(cursor);
+        c++;
+        if (c <= entry.answer.length) requestAnimationFrame(() => setTimeout(type, 10));
+        else cursor.remove();
+      };
+      type();
+    }, 420);
+  }
+  qBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.add('active');
+      renderDemo(demoData[btn.getAttribute('data-q')]);
+    });
+  });
+  const demoInput = document.getElementById('demoInput');
+  const demoAsk = document.getElementById('demoAsk');
+  function askCustom() {
+    const val = (demoInput.value || '').trim();
+    if (!val) return;
+    const looksAnalytical = /(top|spend|revenue|count|how many|average|total)/i.test(val);
+    renderDemo({
+      q: val,
+      tool: looksAnalytical ? 'sql_query' : 'document_retrieval',
+      answer: looksAnalytical
+        ? 'This reads as an analytical question, so the planner would route it to sql_agent against the DuckDB warehouse rather than the document index. Run demo.py locally against your own data to see a real answer.'
+        : 'This reads as a policy/product question, so the planner would route it to document_agent for retrieval + reranking over your indexed docs. Run demo.py locally against your own data to see a real answer.'
+    });
+  }
+  demoAsk.addEventListener('click', askCustom);
+  demoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') askCustom(); });
+
+  // ---- screenshot gallery ----
+  const gtabs = document.querySelectorAll('.gtab');
+  const gimg = document.getElementById('gimg');
+  const gcaption = document.getElementById('gcaption');
+  const shotBase = 'https://raw.githubusercontent.com/khushijhanwar/enterprise-ai-platform-v2/main/screenshots/';
+  gimg.classList.add('loaded');
+  gtabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      gtabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      gimg.classList.remove('loaded');
+      const src = shotBase + tab.getAttribute('data-img');
+      const swap = () => {
+        gimg.src = src;
+        gcaption.textContent = tab.getAttribute('data-caption');
+        gimg.classList.add('loaded');
+      };
+      if (reduceMotion) { swap(); } else { setTimeout(swap, 150); }
+    });
+  });
+</script>
+
+</body>
+</html>
