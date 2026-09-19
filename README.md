@@ -66,8 +66,7 @@ technology — nothing here is a placeholder or a simulation of a real tool.
 ## Production → free-stack mapping
 
 Every technology below is genuinely running, not stubbed out — the table
-maps each one to its production counterpart so you can speak to both
-sides of it in an interview.
+maps each one to its production counterpart.
 
 | Layer | Production | This project (free, local) |
 |---|---|---|
