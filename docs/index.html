@@ -279,27 +279,6 @@
   .demo-table th{ text-align:left; color: var(--text-faint); font-weight:600; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space:nowrap; }
   .demo-table td{ padding: 7px 10px; border-bottom: 1px solid var(--line-soft); color: var(--text-dim); white-space:nowrap; }
   .demo-table tr:last-child td{ border-bottom:none; }
-
-  /* ---------- screenshot gallery ---------- */
-  .gallery{ display:grid; grid-template-columns: 220px 1fr; gap: 24px; align-items:start; }
-  @media (max-width: 820px){ .gallery{ grid-template-columns: 1fr; } }
-  .gtabs{ display:flex; flex-direction:column; gap:6px; }
-  @media (max-width: 820px){ .gtabs{ flex-direction:row; overflow-x:auto; } }
-  .gtab{
-    text-align:left; background: transparent; border: 1px solid var(--line); color: var(--text-dim);
-    border-radius: 8px; padding: 12px 14px; font-family: var(--sans); font-size: 13px; cursor:pointer;
-  }
-  @media (max-width: 820px){ .gtab{ white-space:nowrap; } }
-  .gtab .gcount{ display:block; font-family: var(--mono); font-size: 11px; color: var(--text-faint); margin-top:3px; }
-  .gtab:hover{ border-color: var(--accent-dim); color: var(--text); }
-  .gtab.active{ border-color: var(--accent); color: var(--text); background: var(--accent-wash); }
-  .gframe{
-    border: 1px solid var(--line); border-radius: 10px; overflow:hidden; background: var(--panel);
-    box-shadow: 0 30px 60px -30px rgba(0,0,0,0.6);
-  }
-  .gframe img{ display:block; width:100%; height:auto; opacity: 0; transition: opacity .35s ease; }
-  .gframe img.loaded{ opacity: 1; }
-  .gcaption{ padding: 12px 16px; border-top: 1px solid var(--line-soft); font-size: 13px; color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -309,7 +288,6 @@
     <div class="brand"><span class="dot"></span> enterprise-ai-platform-v2</div>
     <nav class="navlinks">
       <a href="#architecture" data-nav>Architecture</a>
-      <a href="#screens" data-nav>Screens</a>
       <a href="#demo" data-nav>Live demo</a>
       <a href="#stack" data-nav>Stack mapping</a>
       <a href="#install" data-nav>Install</a>
@@ -325,7 +303,7 @@
     <div class="wrap hero-grid">
       <div>
         <div class="badge"><span class="led"></span> MIT licensed · runs fully offline</div>
-        <h1>A RAG stack that runs<br>on <span class="under">nothing but your laptop.</span></h1>
+        <h1>No-fee enterprise AI.<br>A full <span class="under">multi-agent system</span>, on your laptop.</h1>
         <p class="lede">Every layer of this platform — ETL, warehouse, vector search, reranking, agent routing, generation — is the real open-source technology production teams use, wired together to run locally with no cloud bill and no API key.</p>
         <div class="cta-row">
           <a class="btn btn-primary" href="https://github.com/khushijhanwar/enterprise-ai-platform-v2" target="_blank" rel="noopener">View source on GitHub</a>
@@ -404,29 +382,6 @@
           <rect class="accentbox" x="310" y="378" width="280" height="34" rx="6"/>
           <text class="tag" x="450" y="400" text-anchor="middle" font-size="12.5">Ollama · Qwen2.5:7B</text>
         </svg>
-      </div>
-    </div>
-  </section>
-
-  <section id="screens">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <h2>What it actually looks like</h2>
-        <p>Real screenshots of the running app, pulled straight from the repo — not mockups.</p>
-      </div>
-      <div class="gallery reveal">
-        <div class="gtabs">
-          <button class="gtab active" data-img="ss3.png" data-caption="Ask the platform — a policy question routed to document_retrieval, with the retrieved chunk and its relevance score shown below.">Ask the platform<span class="gcount">RAG + citations</span></button>
-          <button class="gtab" data-img="ss6.png" data-caption="A custom analytical question, routed to sql_query, showing the generated SQL and the live result set.">SQL agent<span class="gcount">generated SQL</span></button>
-          <button class="gtab" data-img="ss4.png" data-caption="Knowledge graph tab — built with NetworkX over the document corpus, surfacing bridging concepts by betweenness centrality.">Knowledge graph<span class="gcount">21 concepts · 57 relations</span></button>
-          <button class="gtab" data-img="ss5.png" data-caption="Data ingestion tab — triggers the real PySpark ETL job against accounts_raw.csv and lands it in DuckDB.">Data ingestion<span class="gcount">real Spark job</span></button>
-        </div>
-        <div>
-          <div class="gframe">
-            <img id="gimg" src="https://raw.githubusercontent.com/khushijhanwar/enterprise-ai-platform-v2/main/screenshots/ss3.png" alt="Screenshot of the Enterprise AI Platform Streamlit app, ask-the-platform tab">
-            <div class="gcaption" id="gcaption">Ask the platform — a policy question routed to document_retrieval, with the retrieved chunk and its relevance score shown below.</div>
-          </div>
-        </div>
       </div>
     </div>
   </section>
@@ -842,27 +797,6 @@ streamlit run streamlit_app.py</pre>
   }
   demoAsk.addEventListener('click', askCustom);
   demoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') askCustom(); });
-
-  // ---- screenshot gallery ----
-  const gtabs = document.querySelectorAll('.gtab');
-  const gimg = document.getElementById('gimg');
-  const gcaption = document.getElementById('gcaption');
-  const shotBase = 'https://raw.githubusercontent.com/khushijhanwar/enterprise-ai-platform-v2/main/screenshots/';
-  gimg.classList.add('loaded');
-  gtabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      gtabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      gimg.classList.remove('loaded');
-      const src = shotBase + tab.getAttribute('data-img');
-      const swap = () => {
-        gimg.src = src;
-        gcaption.textContent = tab.getAttribute('data-caption');
-        gimg.classList.add('loaded');
-      };
-      if (reduceMotion) { swap(); } else { setTimeout(swap, 150); }
-    });
-  });
 </script>
 
 </body>
