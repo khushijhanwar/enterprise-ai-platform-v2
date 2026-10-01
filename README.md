@@ -197,6 +197,14 @@ both directions.
  spoken answer  ◄── ElevenLabs text-to-speech ◄── spoken.py ◄──────┘
 ```
 
+![Asking a question by voice](screenshots/voice.png)
+
+A spoken question, transcribed by Scribe, routed to the SQL agent, answered
+with LLM-written SQL, and read back as one sentence. Measured on a MacBook
+Air: transcription 0.7 s, agent 13.8 s (local Qwen2.5), speech 6.5 s. The
+agent is the slow stage, not the voice. Speech waits for the full clip
+before playing; streaming it is the next improvement.
+
 ```bash
 # 1. Put your key in .env (never commit it; .env is git-ignored)
 echo "ELEVENLABS_API_KEY=your_key" >> .env
