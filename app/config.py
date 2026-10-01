@@ -44,6 +44,16 @@ CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "80"))
 RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "8"))
 RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "3"))
 
+# --- Voice (ElevenLabs: Scribe speech-to-text in, text-to-speech out) ---
+# Optional. With no key the voice endpoints still return the spoken-style
+# text answer, just without audio.
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
+ELEVENLABS_TTS_MODEL = os.getenv("ELEVENLABS_TTS_MODEL", "eleven_v4")
+ELEVENLABS_STT_MODEL = os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2")
+# Text-to-speech is billed per character, so spoken answers are capped.
+VOICE_MAX_CHARS = int(os.getenv("VOICE_MAX_CHARS", "400"))
+
 # --- MCP ---
 MCP_SERVER_NAME = "enterprise-ai-platform"
 

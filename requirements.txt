@@ -18,6 +18,10 @@ fastmcp>=2.0                 # real MCP server/tools
 # --- LLM ---
 ollama>=0.3                  # client for a locally-running Ollama server (install separately: https://ollama.com)
 
+# --- Voice ---
+elevenlabs>=2.0              # text-to-speech + Scribe speech-to-text (optional: needs ELEVENLABS_API_KEY)
+python-multipart             # FastAPI audio uploads
+
 # --- Graph analytics ---
 networkx>=3.0
 

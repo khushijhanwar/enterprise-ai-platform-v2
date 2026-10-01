@@ -7,7 +7,7 @@ Docs at:  http://localhost:8000/docs
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import chat, sql, ingest
+from app.api import chat, sql, ingest, voice
 
 app = FastAPI(
     title="Enterprise AI Platform",
@@ -29,6 +29,7 @@ app.add_middleware(
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(sql.router, prefix="/api", tags=["sql"])
 app.include_router(ingest.router, prefix="/api", tags=["ingest"])
+app.include_router(voice.router, prefix="/api", tags=["voice"])
 
 
 @app.get("/health")

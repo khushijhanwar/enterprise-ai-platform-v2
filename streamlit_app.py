@@ -9,6 +9,8 @@ means the two run as separate processes:
     Terminal 1:  uvicorn app.main:app --reload --port 8000
     Terminal 2:  streamlit run streamlit_app.py
 """
+import base64
+import hashlib
 import os
 
 import requests
@@ -41,7 +43,7 @@ if not api_available():
     )
     st.stop()
 
-tab1, tab2, tab3 = st.tabs(["Ask the platform", "Knowledge graph", "Ingest"])
+tab1, tab_voice, tab2, tab3 = st.tabs(["Ask the platform", "Ask by voice", "Knowledge graph", "Ingest"])
 
 with tab1:
     st.subheader("Ask a question")
@@ -80,6 +82,87 @@ with tab1:
                     for s in result["sources"]:
                         st.markdown(f"**{s['source']}** (score={s['score']:.3f})")
                         st.text(s["text"])
+
+with tab_voice:
+    st.subheader("Ask out loud")
+    st.write(
+        "Same agent workflow, with speech on both ends: ElevenLabs Scribe transcribes the "
+        "question, the planner routes it, and the answer is spoken back with its source."
+    )
+
+    try:
+        status = requests.get(f"{API_BASE}/api/voice/status", timeout=5).json()
+    except requests.exceptions.RequestException:
+        status = {"voice_enabled": False}
+
+    if not status.get("voice_enabled"):
+        st.info("Voice is off: add ELEVENLABS_API_KEY to .env and restart the API. Typed questions still work below.")
+
+    recording = None
+    if status.get("voice_enabled"):
+        if hasattr(st, "audio_input"):
+            recording = st.audio_input("Record your question")
+        else:  # older Streamlit: no microphone widget
+            recording = st.file_uploader("Upload a recorded question", type=["wav", "mp3", "m4a", "webm"])
+    typed = st.text_input("...or type it", key="voice_typed")
+
+    # Streamlit reruns this script on every interaction. Cache the last
+    # answer by a hash of the question so a rerun never re-bills a
+    # transcription or a text-to-speech call.
+    request_key = None
+    if recording is not None:
+        audio_bytes = recording.getvalue()
+        request_key = "audio:" + hashlib.sha1(audio_bytes).hexdigest()
+    elif typed:
+        request_key = "text:" + typed
+
+    if request_key and st.session_state.get("voice_key") != request_key:
+        with st.spinner("Listening, routing, speaking..."):
+            try:
+                if recording is not None:
+                    resp = requests.post(
+                        f"{API_BASE}/api/voice/ask-audio",
+                        files={"file": (recording.name or "question.wav", audio_bytes, recording.type or "audio/wav")},
+                        timeout=120,
+                    )
+                else:
+                    resp = requests.post(f"{API_BASE}/api/voice/ask", json={"query": typed}, timeout=120)
+                if resp.status_code >= 400:
+                    st.error(resp.json().get("detail", resp.text))
+                else:
+                    st.session_state["voice_key"] = request_key
+                    st.session_state["voice_result"] = resp.json()
+                    st.session_state["voice_autoplay"] = True
+            except requests.exceptions.RequestException as e:
+                st.error(f"Request failed: {e}")
+
+    voice_result = st.session_state.get("voice_result") if request_key else None
+    if voice_result:
+        if voice_result.get("transcript"):
+            st.markdown(f"**Heard:** {voice_result['transcript']}")
+        st.markdown(f"**Routed to tool:** `{voice_result['tool_used']}`")
+        st.markdown(f"**Spoken answer:** {voice_result['spoken_text']}")
+
+        if voice_result.get("audio_base64"):
+            st.audio(
+                base64.b64decode(voice_result["audio_base64"]),
+                format=voice_result["audio_mime"],
+                autoplay=st.session_state.pop("voice_autoplay", False),
+            )
+
+        timings = voice_result.get("timings_ms", {})
+        if timings:
+            for col, (stage, ms) in zip(st.columns(len(timings)), timings.items()):
+                col.metric(stage, f"{ms} ms")
+
+        with st.expander("What the agent returned"):
+            if voice_result["tool_used"] == "sql_query":
+                st.code(voice_result["sql"], language="sql")
+                st.dataframe(voice_result["result"], use_container_width=True)
+            else:
+                st.write(voice_result["answer"])
+                for s in voice_result["sources"] or []:
+                    st.markdown(f"**{s['source']}** (score={s['score']:.3f})")
 
 with tab2:
     st.subheader("Knowledge graph — concept co-occurrence")

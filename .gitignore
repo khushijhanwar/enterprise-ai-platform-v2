@@ -9,3 +9,4 @@ data/faiss_index/
 .DS_Store
 *.egg-info/
 .pytest_cache/
+answer.mp3

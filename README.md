@@ -91,13 +91,14 @@ exact line(s) you'd change to point at the managed service instead.
 
 ```
 app/
-  api/            chat.py, ingest.py, sql.py  — FastAPI routers
+  api/            chat.py, ingest.py, sql.py, voice.py  — FastAPI routers
   rag/            loader.py, splitter.py, embeddings.py, vectorstore.py,
                   retriever.py, reranker.py, pipeline.py
   llm/            ollama.py
   agents/         planner.py, sql_agent.py, document_agent.py, workflow_agent.py
   warehouse/      duckdb.py
   graph/          knowledge_graph.py
+  voice/          elevenlabs_client.py (speech in/out), spoken.py (answer -> speakable text)
   etl/            spark_pipeline.py
   config.py
   main.py         FastAPI entry point
@@ -108,6 +109,8 @@ data/
 demo.py           one-shot CLI walkthrough of every stage, no servers needed
 streamlit_app.py  frontend (calls the FastAPI backend over HTTP)
 check_setup.py    diagnoses which components are running at full strength
+scripts/voice_smoke_test.py   text -> speech -> text round trip against ElevenLabs
+tests/test_voice.py           voice layer tests (no network, no API key)
 requirements.txt
 .env.example
 ```
@@ -180,6 +183,56 @@ python -m app.mcp_server
 Exposes `sql_query`, `document_search`, and `related_knowledge_concepts`
 as MCP tools over stdio — connectable from any MCP client (e.g. Claude
 Desktop's MCP config).
+
+### 7. (Optional) Ask by voice
+
+The one component that is not local: a voice layer on top of the same
+agent workflow, using [ElevenLabs](https://elevenlabs.io) for speech in
+both directions.
+
+```
+ spoken question ──► Scribe (speech-to-text) ──► planner ──► sql_agent / document_agent
+                                                                   │
+ spoken answer  ◄── ElevenLabs text-to-speech ◄── spoken.py ◄──────┘
+```
+
+```bash
+# 1. Put your key in .env (never commit it; .env is git-ignored)
+echo "ELEVENLABS_API_KEY=your_key" >> .env
+
+# 2. Round-trip check: speaks one sentence, then transcribes it back
+python scripts/voice_smoke_test.py
+
+# 3. Restart the API, then open the "Ask by voice" tab in Streamlit
+```
+
+| Endpoint | In | Out |
+|---|---|---|
+| `POST /api/voice/ask` | JSON `{"query": "..."}` | spoken answer (MP3, base64) + the agent's full result |
+| `POST /api/voice/ask-audio` | recorded audio file | transcript + spoken answer + the agent's full result |
+| `GET /api/voice/status` | | whether voice is configured |
+
+Design decisions worth knowing about:
+
+- **A table is not an answer you can say.** `app/voice/spoken.py` turns
+  a SQL result into one sentence ("I found 5 results, showing monthly
+  spend. Customer 32 with 24,982 dollars; ...") and strips markdown and
+  inline citations from document answers, then names the top source out
+  loud so a spoken answer is still a cited one.
+- **Cost guard.** Text-to-speech is billed per character, so spoken
+  answers are capped (`VOICE_MAX_CHARS`, default 400) and cut at a
+  sentence boundary, never mid-word. The Streamlit tab caches the last
+  answer so a rerun never re-bills a call.
+- **Per-stage timings.** Every response reports `transcribe`, `agent`,
+  and `speak` in milliseconds, so a slow voice turn can be traced to
+  the stage that caused it.
+- **Same fallback rule as the rest of the app.** With no API key,
+  `/api/voice/ask` still returns the spoken-style text with no audio,
+  and everything else runs unchanged.
+
+```bash
+pytest tests/test_voice.py   # no network, no key: the provider and agent are faked
+```
 
 ## What's real vs. what has a fallback
 
