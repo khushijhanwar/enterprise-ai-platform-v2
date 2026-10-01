@@ -98,7 +98,8 @@ app/
   agents/         planner.py, sql_agent.py, document_agent.py, workflow_agent.py
   warehouse/      duckdb.py
   graph/          knowledge_graph.py
-  voice/          elevenlabs_client.py (speech in/out), spoken.py (answer -> speakable text)
+  voice/          elevenlabs_client.py (speech in/out), spoken.py (answer -> speakable text),
+                  audio_check.py (silence detection before transcription)
   etl/            spark_pipeline.py
   config.py
   main.py         FastAPI entry point
@@ -223,6 +224,12 @@ Design decisions worth knowing about:
   answers are capped (`VOICE_MAX_CHARS`, default 400) and cut at a
   sentence boundary, never mid-word. The Streamlit tab caches the last
   answer so a rerun never re-bills a call.
+- **Silence is caught before it costs anything.** A recording is
+  measured first (`app/voice/audio_check.py`). If the microphone
+  delivered silence, the API says so, with the duration and peak level,
+  and never calls speech-to-text. "No words" on audible audio is
+  reported as a different error, so a mic problem and a transcription
+  problem are never confused.
 - **Per-stage timings.** Every response reports `transcribe`, `agent`,
   and `speak` in milliseconds, so a slow voice turn can be traced to
   the stage that caused it.

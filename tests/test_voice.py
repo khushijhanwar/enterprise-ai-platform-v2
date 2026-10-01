@@ -6,6 +6,10 @@ in CI in under a second.
     pytest tests/test_voice.py
 """
 import base64
+import io
+import wave
+
+import numpy as np
 
 import pandas as pd
 import pytest
@@ -190,6 +194,55 @@ def test_silent_recording_is_rejected_before_any_speech_is_billed(client):
     r = http.post("/api/voice/ask-audio", files={"file": ("q.wav", b"x", "audio/wav")})
     assert r.status_code == 422
     assert agent.queries == [] and voice.spoken == []
+
+
+def _wav(amplitude: float, seconds: float = 1.0, rate: int = 16000) -> bytes:
+    """A real 16-bit mono WAV: a 220 Hz tone at the given amplitude (0 = digital silence)."""
+    t = np.arange(int(seconds * rate)) / rate
+    samples = (np.sin(2 * np.pi * 220 * t) * amplitude * 32767).astype(np.int16)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate)
+        w.writeframes(samples.tobytes())
+    return buf.getvalue()
+
+
+def test_wav_stats_measures_duration_and_peak():
+    from app.voice.audio_check import wav_stats
+
+    assert wav_stats(_wav(0.0, seconds=2.0)) == {"duration_s": 2.0, "peak": 0.0, "silent": True}
+    loud = wav_stats(_wav(0.5))
+    assert loud["silent"] is False and 0.49 < loud["peak"] < 0.51
+    assert wav_stats(b"ID3 not a wav") is None          # MP3/WebM: skip the check, don't guess
+
+
+def test_silent_microphone_is_reported_as_silence_and_never_transcribed(client):
+    class Recorder(FakeVoice):
+        calls = 0
+
+        def transcribe(self, *a, **k):
+            Recorder.calls += 1
+            return ""
+
+    http, agent, voice = client(voice=Recorder())
+    r = http.post("/api/voice/ask-audio", files={"file": ("q.wav", _wav(0.0, seconds=6.0), "audio/wav")})
+
+    assert r.status_code == 422
+    assert "silent: 6.0 s long, peak level 0.00%" in r.json()["detail"]
+    assert Recorder.calls == 0 and agent.queries == [] and voice.spoken == []   # nothing billed
+
+
+def test_audible_recording_with_no_words_blames_transcription_not_the_mic(client):
+    http, _, _ = client(voice=FakeVoice(heard=""))
+    r = http.post("/api/voice/ask-audio", files={"file": ("q.wav", _wav(0.4), "audio/wav")})
+    assert r.status_code == 422
+    assert "has sound (1.0 s, peak level 40%)" in r.json()["detail"]
+
+
+def test_audible_recording_goes_through(client):
+    http, agent, _ = client(agent_output=SQL_OUTPUT, voice=FakeVoice(heard="Top accounts by spend?"))
+    r = http.post("/api/voice/ask-audio", files={"file": ("q.wav", _wav(0.4), "audio/wav")})
+    assert r.status_code == 200 and agent.queries == ["Top accounts by spend?"]
 
 
 def test_provider_failure_is_a_clean_502(client):

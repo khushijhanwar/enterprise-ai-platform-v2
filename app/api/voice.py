@@ -18,6 +18,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app.config import VOICE_MAX_CHARS
+from app.voice.audio_check import wav_stats
 from app.voice.elevenlabs_client import AUDIO_MIME, VoiceClient
 from app.voice.spoken import to_spoken_text
 
@@ -125,6 +126,19 @@ def voice_ask_audio(file: UploadFile = File(...)) -> VoiceResponse:
     if not audio:
         raise HTTPException(status_code=400, detail="Empty audio upload")
 
+    # Measure before transcribing: a silent recording is a microphone
+    # problem, not a speech problem, and should not cost a transcription.
+    stats = wav_stats(audio)
+    if stats and stats["silent"]:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"The recording is silent: {stats['duration_s']} s long, peak level {stats['peak']:.2%}. "
+                "The browser recorded from an input that delivered no sound, so nothing was sent for "
+                "transcription. Check which microphone the browser is using."
+            ),
+        )
+
     timings: dict[str, int] = {}
     t = time.perf_counter()
     try:
@@ -134,6 +148,10 @@ def voice_ask_audio(file: UploadFile = File(...)) -> VoiceResponse:
     timings["transcribe"] = _ms(t)
 
     if not transcript:
-        raise HTTPException(status_code=422, detail="Could not hear a question in that recording")
+        heard = f" ({stats['duration_s']} s, peak level {stats['peak']:.0%})" if stats else ""
+        raise HTTPException(
+            status_code=422,
+            detail=f"The recording has sound{heard}, but speech-to-text returned no words for it",
+        )
 
     return _answer(transcript, transcript=transcript, timings=timings)
