@@ -85,13 +85,33 @@ def _speak_sql(result: Any) -> str:
     return text
 
 
+_SENTENCE_END = re.compile(r"(?<!\.)[.!?](?=\s|$)")   # a lone . ! or ?, never part of "..."
+
+
 def _clean_for_speech(text: str) -> str:
+    # Extractive-fallback framing (used when Ollama is not running): the
+    # preamble reads the question back and the footer is a setup hint.
+    text = re.sub(r'^\s*Based on the retrieved context for:\s*".*?"', "", text, flags=re.S)
     text = re.sub(r"\(Extractive fallback mode.*?\)", "", text, flags=re.S)
     text = re.sub(r"\[[^\]]+\.(?:txt|md|pdf)\]", "", text)  # inline [file.txt] citations
     text = re.sub(r"[*_`#>]", "", text)                      # markdown
     text = re.sub(r"^\s*-\s+", "", text, flags=re.M)         # bullets
     text = re.sub(r"\s+", " ", text).strip()
-    return re.sub(r"\s+([.,;:!?])", r"\1", text)              # gap left by a removed citation
+    text = re.sub(r"\s+([.,;:!?])", r"\1", text)              # gap left by a removed citation
+
+    # A snippet shortened with "..." ends mid-sentence. Reading half a
+    # sentence aloud sounds broken, so drop the unfinished tail of each one.
+    if "..." in text or "\u2026" in text:
+        kept = []
+        for piece in re.split(r"\.\.\.|\u2026", text):
+            ends = list(_SENTENCE_END.finditer(piece))
+            if ends:
+                kept.append(piece[: ends[-1].end()].strip())
+        if kept:
+            text = " ".join(kept)
+        else:  # nothing but one unfinished sentence: keep it, end it cleanly
+            text = re.sub(r"\s*(?:\.\.\.|\u2026)\s*", ". ", text).strip()
+    return text
 
 
 def _source_name(sources: list[dict] | None) -> str | None:
@@ -108,9 +128,9 @@ def truncate_at_sentence(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
         return text
     window = text[:max_chars]
-    end = max(window.rfind(". "), window.rfind("? "), window.rfind("! "))
-    if end >= max_chars // 3:
-        return window[: end + 1]
+    ends = [m.end() for m in _SENTENCE_END.finditer(window)]
+    if ends and ends[-1] >= max_chars // 3:
+        return window[: ends[-1]]
     return window.rsplit(" ", 1)[0].rstrip(",;:") + "."
 
 

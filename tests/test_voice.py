@@ -66,6 +66,38 @@ def test_document_answer_drops_markdown_and_names_its_source():
     assert text.endswith("Source: refund policy.")
 
 
+def test_extractive_fallback_answer_is_cleaned_for_speech():
+    """What the app returns when Ollama is not running: a preamble that
+    repeats the question, snippets cut off with '...', and a setup hint."""
+    out = {
+        "tool_used": "document_retrieval",
+        "answer": (
+            'Based on the retrieved context for: "How long does onboarding take?"\n\n'
+            "- Onboarding has four stages. Stage one is a kickoff call. Stage two is environment "
+            "provisioning, including VPC... [onboarding_guide.txt]\n"
+            "- Most accounts finish in six weeks. Larger deployments can take... [onboarding_guide.txt]\n"
+            "\n(Extractive fallback mode -- install Ollama and run `ollama pull qwen2.5:7b` "
+            "to enable real grounded generation.)"
+        ),
+        "sources": [{"source": "onboarding_guide.txt", "score": 0.8, "text": "..."}],
+    }
+    text = to_spoken_text(out)
+    assert text == (
+        "Onboarding has four stages. Stage one is a kickoff call. "
+        "Most accounts finish in six weeks. Source: onboarding guide."
+    )
+
+
+def test_single_unfinished_snippet_is_kept_and_closed():
+    out = {"tool_used": "document_retrieval", "answer": "- Refunds are handled by the billing team within... [refund_policy.txt]"}
+    assert to_spoken_text(out) == "Refunds are handled by the billing team within."
+
+
+def test_truncation_never_stops_on_an_ellipsis():
+    text = truncate_at_sentence("One full sentence here. Then a trailing thought... and more words after it follow.", 55)
+    assert text == "One full sentence here."
+
+
 def test_citation_survives_truncation():
     out = dict(DOC_OUTPUT, answer="This is a sentence. " * 100)
     text = to_spoken_text(out, max_chars=120)
