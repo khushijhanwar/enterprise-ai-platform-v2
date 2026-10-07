@@ -1,0 +1,48 @@
+# Runs the whole app with one command:
+#
+#   docker compose up --build
+#
+#   Streamlit UI : http://localhost:8501
+#   API docs     : http://localhost:8000/docs
+#
+# Both services use the same image. Ollama is not containerized here: it
+# is expected on the host (see README step 2), and the API reaches it via
+# host.docker.internal. Without Ollama the app still runs and falls back
+# to extractive answers, exactly as it does outside Docker.
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false          # optional: every setting has a default
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # needed on Linux; harmless on Mac/Windows
+    volumes:
+      - platform-data:/app/data                        # DuckDB warehouse + FAISS index
+      - model-cache:/home/appuser/.cache/huggingface   # BGE weights, downloaded once
+
+  ui:
+    build: .
+    command: >
+      streamlit run streamlit_app.py
+      --server.address 0.0.0.0
+      --server.port 8501
+      --server.headless true
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: http://api:8000
+    healthcheck:
+      disable: true              # the image's healthcheck targets the API port
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  platform-data:
+  model-cache:

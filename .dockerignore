@@ -1,0 +1,21 @@
+# Keep the build context small and keep secrets and local state out of the image.
+.git
+.gitignore
+.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.streamlit/
+.DS_Store
+*.egg-info/
+
+# Generated at runtime by the ETL and the indexer.
+data/warehouse.duckdb
+data/faiss_index/
+answer.mp3
+
+# Not needed to run the services.
+docs/
+screenshots/
