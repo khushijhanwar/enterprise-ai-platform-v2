@@ -82,6 +82,7 @@ maps each one to its production counterpart.
 | Graph analytics | Neo4j / Spanner Graph | **NetworkX** — in-memory graph + centrality analysis |
 | API layer | FastAPI (cloud-deployed) | **FastAPI** — identical, just running on localhost |
 | Frontend | Streamlit / internal tool | **Streamlit** — identical |
+| Packaging | Container image on a managed service | **Docker** — one image for the API and the frontend, started with Docker Compose |
 
 Every module's docstring in the code repeats its specific swap and the
 exact line(s) you'd change to point at the managed service instead.
@@ -114,9 +115,49 @@ scripts/voice_smoke_test.py   text -> speech -> text round trip against ElevenLa
 tests/test_voice.py           voice layer tests (no network, no API key)
 requirements.txt
 .env.example
+Dockerfile          one image for both services (includes the JRE PySpark needs)
+docker-compose.yml  runs the API and the Streamlit frontend together
+.dockerignore
 ```
 
 ## Running it
+
+### Quick start with Docker
+
+```bash
+docker compose up --build
+```
+
+That one command builds a single image and starts both services from it:
+
+| Service | URL |
+|---|---|
+| Streamlit frontend | `http://localhost:8501` |
+| FastAPI backend (docs) | `http://localhost:8000/docs` |
+
+No local Python or Java setup is needed: the image installs the
+requirements and the JRE that PySpark runs on. The first build takes a
+few minutes. Once the app is up, open the **Ingest** tab and run the
+Spark ETL once to load the sample data, then ask a question.
+
+Things worth knowing:
+
+- **Ollama stays on the host.** It is not containerized. The API
+  container reaches it through `host.docker.internal`, so if the Ollama
+  app is running on your machine, generation works with no extra
+  config. If it is not, the app uses the same extractive fallback as
+  it does outside Docker.
+- **Voice is optional here too.** If a `.env` file exists, Compose
+  passes it to the API, so `ELEVENLABS_API_KEY` works the same way.
+  `.env` is excluded from the image by `.dockerignore`.
+- **Data survives restarts.** The DuckDB warehouse, the FAISS index,
+  and the downloaded BGE weights live in named volumes. Run
+  `docker compose down -v` to wipe them and start clean.
+- **Memory.** Spark and the embedding models load in the same
+  container. If the API exits with code 137, give Docker more memory
+  (6 GB is comfortable).
+
+Prefer to run it without Docker? Follow the steps below.
 
 ### 1. Install
 
